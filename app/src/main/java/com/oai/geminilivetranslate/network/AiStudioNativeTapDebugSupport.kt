@@ -1,0 +1,457 @@
+package com.oai.geminilivetranslate.network
+
+import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.view.Gravity
+import android.view.InputDevice
+import android.view.MotionEvent
+import android.view.ViewGroup
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
+import com.oai.geminilivetranslate.GeminiTranslateApp
+import com.oai.geminilivetranslate.core.AppPreferences
+import com.oai.geminilivetranslate.core.SessionLogger
+import com.oai.geminilivetranslate.ui.AiStudioWebSessionR20ForensicDiagnostics
+import org.json.JSONObject
+import java.lang.ref.WeakReference
+import java.util.WeakHashMap
+import kotlin.math.roundToInt
+
+internal object AiStudioNativeTapDocumentStart {
+    const val VERSION = "2026-09-18-r18.12-per-purpose-touch-debounce"
+
+    val DOCUMENT_START: String =
+        "(function(){if(/gemini-3\\.8-live/i.test(String(location.href||''))){\n" +
+            AiStudioWebSessionR20ForensicDiagnostics.DOCUMENT_START +
+            "\n}})();\n" +
+            """
+(function(){
+  'use strict';
+  if(window.__AIS_NATIVE_START_TAP__&&window.__AIS_NATIVE_START_TAP__.version)return;
+  const VERSION='2026-09-18-r18.12-per-purpose-touch-debounce';
+  const bridge=window.AIStudioNativeTapBridge;
+  if(!bridge)return;
+
+  function safeText(v,n){return String(v||'').replace(/\s+/g,' ').trim().slice(0,n||160);}
+  function attr(el,name){try{return el&&el.getAttribute?safeText(el.getAttribute(name)||'',120):'';}catch(_){return '';}}
+  function role(el){return attr(el,'role').toLowerCase();}
+  function tag(el){try{return String(el&&el.tagName||'').toUpperCase();}catch(_){return '';}}
+  function label(el){
+    try{return safeText([attr(el,'aria-label'),attr(el,'data-testid'),attr(el,'name'),attr(el,'id'),safeText(el&&el.title||'',80),safeText(el&&el.value||'',100),safeText(el&&el.textContent||'',180)].filter(Boolean).join(' '),320).toLowerCase();}catch(_){return '';}
+  }
+  function isInteractive(el){
+    const r=role(el),t=tag(el);
+    return t==='BUTTON'||t==='A'||r==='button'||r==='menuitem'||r==='tab'||r==='link';
+  }
+  function startLike(el){
+    const l=label(el);if(!l||!isInteractive(el)||/\b(stop|end|disconnect|leave)\b/.test(l))return false;
+    return /\b(start|begin|connect|talk|speak|join)\b/.test(l)||l.indexOf('go live')>=0||l.indexOf('start session')>=0||l.indexOf('start live')>=0;
+  }
+  function shareScreenLike(el){
+    const l=label(el);if(!l||!isInteractive(el))return false;
+    if(/stop sharing|stop share|end sharing|turn off screen/.test(l))return false;
+    return /share screen|screen share|share your screen|present screen|share display|share window|share tab|present now|chia sẻ màn hình/.test(l);
+  }
+  function cameraLike(el){
+    const l=label(el);if(!l||!isInteractive(el))return false;
+    if(/turn camera off|turn off camera|disable camera|stop camera|camera enabled/.test(l))return false;
+    return /turn camera on|turn on camera|enable camera|start camera|\bcamera\b|\bwebcam\b|máy ảnh|share video|start video/.test(l);
+  }
+  function tapPurpose(el){
+    if(shareScreenLike(el))return 'share-screen';
+    if(cameraLike(el))return 'camera-input';
+    if(startLike(el))return 'start-live';
+    return '';
+  }
+  function clickableAncestor(node){
+    let el=node&&node.nodeType===1?node:null;
+    for(let i=0;i<7&&el;i++,el=el.parentElement){if(tapPurpose(el))return el;}
+    return null;
+  }
+  function reportGesture(kind,ev){
+    try{
+      const el=clickableAncestor(ev&&ev.target);if(!el)return;
+      let active=false,hasBeenActive=false;
+      try{
+        const ua=navigator.userActivation;
+        active=!!(ua&&ua.isActive);
+        hasBeenActive=!!(ua&&ua.hasBeenActive);
+      }catch(_){}
+      bridge.reportStartGesture(JSON.stringify({
+        kind:kind,
+        trusted:!!ev.isTrusted,
+        tag:tag(el)||'none',
+        role:role(el)||'none',
+        purpose:tapPurpose(el)||'unknown',
+        userActivationActive:active,
+        userActivationHasBeenActive:hasBeenActive,
+        pointerType:safeText(ev&&ev.pointerType||'',24),
+        detail:Number(ev&&ev.detail||0),
+        button:Number(ev&&ev.button||0),
+        buttons:Number(ev&&ev.buttons||0)
+      }));
+    }catch(_){}
+  }
+  ['pointerdown','touchstart','mousedown','pointerup','touchend','mouseup','click'].forEach(function(kind){
+    try{document.addEventListener(kind,function(ev){reportGesture(kind,ev);},true);}catch(_){}
+  });
+
+  const proto=window.HTMLElement&&window.HTMLElement.prototype;
+  const nativeClick=proto&&proto.click;
+  if(proto&&typeof nativeClick==='function'&&!nativeClick.__aisNativeStartTapWrapped){
+    const wrapped=function(){
+      try{
+        const purpose=tapPurpose(this);
+        if(purpose){
+          let r=this.getBoundingClientRect();
+          if(r&&r.width>1&&r.height>1){
+            const vw=Math.max(1,window.innerWidth||document.documentElement.clientWidth||1);
+            const vh=Math.max(1,window.innerHeight||document.documentElement.clientHeight||1);
+            let cx=r.left+r.width/2,cy=r.top+r.height/2;
+            if(cx<0||cy<0||cx>vw||cy>vh){
+              try{this.scrollIntoView({block:'center',inline:'center'});}catch(_){}
+              r=this.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;
+            }
+            if(cx>=0&&cy>=0&&cx<=vw&&cy<=vh){
+              bridge.requestNativeTap(JSON.stringify({xRatio:cx/vw,yRatio:cy/vh,tag:tag(this)||'none',role:role(this)||'none',purpose:purpose}));
+              return;
+            }
+          }
+        }
+      }catch(_){}
+      return nativeClick.apply(this,arguments);
+    };
+    wrapped.__aisNativeStartTapWrapped=true;
+    proto.click=wrapped;
+  }
+  window.__AIS_NATIVE_START_TAP__={version:VERSION};
+})();
+            """.trimIndent()
+}
+
+internal class AiStudioNativeTapController(
+    private val webView: WebView,
+    private val logger: SessionLogger?,
+) {
+    private val main = Handler(Looper.getMainLooper())
+    private val touchscreenDeviceId: Int by lazy(LazyThreadSafetyMode.NONE) {
+        InputDevice.getDeviceIds().firstOrNull { id ->
+            InputDevice.getDevice(id)?.supportsSource(InputDevice.SOURCE_TOUCHSCREEN) == true
+        } ?: 0
+    }
+    private val lastTapAtByPurpose = mutableMapOf<String, Long>()
+    @Volatile private var lastMicPermissionRequestAt = 0L
+
+    private fun obtainFingerTouchEvent(
+        action: Int,
+        downTime: Long,
+        eventTime: Long,
+        px: Float,
+        py: Float,
+    ): MotionEvent {
+        val properties = MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_FINGER
+        }
+        val coordinates = MotionEvent.PointerCoords().apply {
+            x = px
+            y = py
+            pressure = 1f
+            size = 1f
+        }
+        return MotionEvent.obtain(
+            downTime,
+            eventTime,
+            action,
+            1,
+            arrayOf(properties),
+            arrayOf(coordinates),
+            0,
+            0,
+            1f,
+            1f,
+            touchscreenDeviceId,
+            0,
+            InputDevice.SOURCE_TOUCHSCREEN,
+            0,
+        )
+    }
+
+    @JavascriptInterface
+    fun requestNativeTap(json: String?) {
+        val parsed = runCatching { JSONObject(json.orEmpty()) }.getOrNull()
+        val xRatio = parsed?.optDouble("xRatio", Double.NaN) ?: Double.NaN
+        val yRatio = parsed?.optDouble("yRatio", Double.NaN) ?: Double.NaN
+        val tag = parsed?.optString("tag").orEmpty().take(32)
+        val role = parsed?.optString("role").orEmpty().take(48)
+        val purpose = parsed?.optString("purpose").orEmpty().take(48).ifBlank { "start-live" }
+        if (!xRatio.isFinite() || !yRatio.isFinite() || xRatio !in 0.0..1.0 || yRatio !in 0.0..1.0) {
+            logger?.log(1, "AiStudioNativeTap", "ACTION_TAP_REJECT purpose=$purpose invalidCoordinates=true")
+            return
+        }
+        main.post {
+            val now = SystemClock.uptimeMillis()
+            val previousTapAt = lastTapAtByPurpose[purpose] ?: 0L
+            if (now - previousTapAt < NATIVE_TAP_DEBOUNCE_MS) {
+                logger?.log(
+                    3,
+                    "AiStudioNativeTap",
+                    "ACTION_TAP_SKIPPED purpose=$purpose debounce=true samePurpose=true ageMs=${now - previousTapAt}",
+                )
+                return@post
+            }
+            val width = webView.width
+            val height = webView.height
+            if (width < 4 || height < 4 || !webView.isShown) {
+                logger?.log(1, "AiStudioNativeTap", "ACTION_TAP_REJECT purpose=$purpose laidOut=${width >= 4 && height >= 4} shown=${webView.isShown} width=$width height=$height")
+                return@post
+            }
+            lastTapAtByPurpose[purpose] = now
+            val x = (xRatio * width).toFloat().coerceIn(1f, (width - 2).toFloat())
+            val y = (yRatio * height).toFloat().coerceIn(1f, (height - 2).toFloat())
+            val downTime = SystemClock.uptimeMillis()
+            val down = obtainFingerTouchEvent(MotionEvent.ACTION_DOWN, downTime, downTime, x, y)
+            val downHandled = runCatching { webView.dispatchTouchEvent(down) }.getOrDefault(false)
+            down.recycle()
+            logger?.log(
+                2,
+                "AiStudioNativeTap",
+                "ACTION_TAP_DOWN purpose=$purpose x=${x.roundToInt()} y=${y.roundToInt()} width=$width height=$height handled=$downHandled tag=$tag role=$role deviceId=$touchscreenDeviceId toolType=finger source=touchscreen",
+            )
+            main.postDelayed({
+                if (!webView.isAttachedToWindow) {
+                    logger?.log(1, "AiStudioNativeTap", "ACTION_TAP_UP purpose=$purpose skipped=detached")
+                    return@postDelayed
+                }
+                val upTime = SystemClock.uptimeMillis()
+                val up = obtainFingerTouchEvent(MotionEvent.ACTION_UP, downTime, upTime, x, y)
+                val upHandled = runCatching { webView.dispatchTouchEvent(up) }.getOrDefault(false)
+                up.recycle()
+                logger?.log(
+                    2,
+                    "AiStudioNativeTap",
+                    "ACTION_TAP_UP purpose=$purpose x=${x.roundToInt()} y=${y.roundToInt()} handled=$upHandled durationMs=${upTime - downTime} deviceId=$touchscreenDeviceId toolType=finger source=touchscreen",
+                )
+            }, 72L)
+        }
+    }
+
+    @JavascriptInterface
+    fun hasMicrophonePermission(): Boolean {
+        return androidx.core.content.ContextCompat.checkSelfPermission(
+            webView.context,
+            android.Manifest.permission.RECORD_AUDIO,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    @JavascriptInterface
+    fun requestMicrophonePermission(): Boolean {
+        if (hasMicrophonePermission()) return true
+        main.post {
+            val now = SystemClock.uptimeMillis()
+            if (now - lastMicPermissionRequestAt < 5_000L) return@post
+            val activity = GeminiTranslateApp.currentActivity() ?: return@post
+            lastMicPermissionRequestAt = now
+            logger?.log(2, "AiStudioAuthMedia", "ANDROID_MIC_PERMISSION_REQUEST source=live-screen-description")
+            activity.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), LIVE_MIC_PERMISSION_REQUEST_CODE)
+        }
+        return false
+    }
+
+    @JavascriptInterface
+    fun reportStartGesture(json: String?) {
+        val parsed = runCatching { JSONObject(json.orEmpty()) }.getOrNull() ?: return
+        val kind = parsed.optString("kind").take(24)
+        val trusted = parsed.optBoolean("trusted", false)
+        val tag = parsed.optString("tag").take(32)
+        val role = parsed.optString("role").take(48)
+        val purpose = parsed.optString("purpose").take(48)
+        val activationActive = parsed.optBoolean("userActivationActive", false)
+        val activationHasBeenActive = parsed.optBoolean("userActivationHasBeenActive", false)
+        val pointerType = parsed.optString("pointerType").take(24)
+        val detail = parsed.optInt("detail", 0)
+        val button = parsed.optInt("button", 0)
+        val buttons = parsed.optInt("buttons", 0)
+        logger?.log(
+            2,
+            "AiStudioNativeTap",
+            "ACTION_GESTURE kind=$kind trusted=$trusted purpose=$purpose tag=$tag role=$role userActivationActive=$activationActive userActivationHasBeenActive=$activationHasBeenActive pointerType=$pointerType detail=$detail button=$button buttons=$buttons",
+        )
+    }
+
+    companion object {
+        private const val LIVE_MIC_PERMISSION_REQUEST_CODE = 64017
+        private const val NATIVE_TAP_DEBOUNCE_MS = 1_200L
+    }
+}
+
+internal object AiStudioDebugWebViewHost {
+    const val VERSION = "2026-09-18-r18.17-default-webview-ua-authentic-touch"
+    private val main = Handler(Looper.getMainLooper())
+    private val panels = WeakHashMap<WebView, WeakReference<ViewGroup>>()
+
+    fun attach(webView: WebView, logger: SessionLogger?, retry: Int = 0) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post { attach(webView, logger, retry) }
+            return
+        }
+        val activity = GeminiTranslateApp.currentActivity()
+        if (activity == null) {
+            if (retry < 12) main.postDelayed({ attach(webView, logger, retry + 1) }, 150L)
+            else logger?.log(1, "AiStudioDebugWeb", "VISIBLE_WEBVIEW_ATTACH_FAILED reason=no-foreground-activity")
+            return
+        }
+        val prefs = AppPreferences(activity)
+        val liveScreenMode =
+            prefs.loadProcessingMode() == AppPreferences.PROCESSING_MODE_VIDEO_DESCRIPTION &&
+                prefs.loadVideoDescriptionMode() == AppPreferences.VIDEO_DESCRIPTION_LIVE
+        if (liveScreenMode) {
+            webView.settings.apply {
+                userAgentString = null
+                useWideViewPort = false
+                loadWithOverviewMode = false
+            }
+            logger?.log(
+                2,
+                "AiStudioDebugWeb",
+                "R26_MOBILE_PROFILE enabled=true reason=live-screen-description transport=camera-gum ua=default-webview wideViewport=false overview=false",
+            )
+        }
+
+        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        if (content == null) {
+            logger?.log(1, "AiStudioDebugWeb", "VISIBLE_WEBVIEW_ATTACH_FAILED reason=no-content-root")
+            return
+        }
+        panels.keys.toList().filter { it !== webView }.forEach { staleView ->
+            val stalePanel = panels.remove(staleView)?.get()
+            (staleView.parent as? ViewGroup)?.removeView(staleView)
+            (stalePanel?.parent as? ViewGroup)?.removeView(stalePanel)
+            runCatching { staleView.stopLoading() }
+            runCatching { staleView.loadUrl("about:blank") }
+            runCatching { staleView.destroy() }
+            logger?.log(3, "AiStudioDebugWeb", "VISIBLE_WEBVIEW_REPLACED previous=true")
+        }
+        (webView.parent as? ViewGroup)?.removeView(webView)
+        webView.setBackgroundColor(Color.WHITE)
+        val panel = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            elevation = 16f * resources.displayMetrics.density
+        }
+        val label = TextView(activity).apply {
+            text = if (liveScreenMode) {
+                "AI Studio Live mobile - phiên đang dùng cho Mô tả thời gian thực"
+            } else {
+                "AI Studio kiểm tra tạm thời - đây là chính phiên AI Studio ứng dụng đang dùng"
+            }
+            setTextColor(Color.BLACK)
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(activity, 8), dp(activity, 6), dp(activity, 8), dp(activity, 6))
+            textSize = 14f
+        }
+        panel.addView(label, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        panel.addView(webView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val screenHeight = activity.resources.displayMetrics.heightPixels
+        val height = (screenHeight * 0.48f).roundToInt().coerceAtLeast(dp(activity, 300))
+        content.addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height, Gravity.BOTTOM))
+        panels[webView] = WeakReference(panel)
+        val visible = prefs.loadAiStudioWebViewVisible()
+        applyPresentation(webView, panel, visible, logger, "attach")
+        if (visible) {
+            panel.bringToFront()
+            panel.requestLayout()
+            panel.invalidate()
+            webView.requestLayout()
+            webView.invalidate()
+            main.post {
+                if (panel.parent != null && webView.parent != null) {
+                    panel.bringToFront()
+                    applyPresentation(webView, panel, true, logger, "attach-first-layout")
+                }
+            }
+        }
+        logger?.log(
+            2,
+            "AiStudioDebugWeb",
+            "AI_STUDIO_WEBVIEW_ATTACHED visible=$visible height=$height screenHeight=$screenHeight hiddenOffscreen=${!visible} desktop=false mobileProfile=$liveScreenMode immediate=$visible",
+        )
+    }
+
+    fun setVisibleForActive(visible: Boolean, logger: SessionLogger?) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post { setVisibleForActive(visible, logger) }
+            return
+        }
+        var changed = 0
+        panels.entries.toList().forEach { (webView, ref) ->
+            val panel = ref.get() ?: return@forEach
+            applyPresentation(webView, panel, visible, logger, "settings-toggle")
+            if (visible) panel.bringToFront()
+            changed += 1
+        }
+        logger?.log(2, "AiStudioDebugWeb", "R24_WEBVIEW_VISIBILITY_TOGGLE visible=$visible activePanels=$changed")
+    }
+
+    private fun applyPresentation(
+        webView: WebView,
+        panel: ViewGroup,
+        visible: Boolean,
+        logger: SessionLogger?,
+        reason: String,
+    ) {
+        val screenHeight = panel.resources.displayMetrics.heightPixels
+        val panelHeight = (panel.layoutParams?.height ?: panel.height).coerceAtLeast(1)
+        panel.visibility = android.view.View.VISIBLE
+        webView.visibility = android.view.View.VISIBLE
+        panel.alpha = 1f
+        webView.alpha = 1f
+        panel.translationY = if (visible) 0f else (screenHeight + panelHeight).toFloat()
+        val accessibility = if (visible) {
+            android.view.View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        } else {
+            android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+        panel.importantForAccessibility = accessibility
+        webView.importantForAccessibility = accessibility
+        panel.isFocusable = visible
+        panel.isFocusableInTouchMode = visible
+        if (visible) panel.bringToFront()
+        logger?.log(2, "AiStudioDebugWeb", "R24_WEBVIEW_PRESENTATION visible=$visible hiddenOffscreen=${!visible} reason=$reason webShown=${webView.isShown} width=${webView.width} height=${webView.height}")
+    }
+
+    fun retain(webView: WebView, logger: SessionLogger?, reason: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post { retain(webView, logger, reason) }
+            return
+        }
+        val panel = panels[webView]?.get()
+        if (panel != null && panel.parent != null && webView.parent != null) {
+            val visible = AppPreferences(panel.context).loadAiStudioWebViewVisible()
+            applyPresentation(webView, panel, visible, logger, "retain:$reason")
+            logger?.log(2, "AiStudioDebugWeb", "AI_STUDIO_WEBVIEW_RETAINED reason=$reason visible=$visible")
+            return
+        }
+        attach(webView, logger)
+        logger?.log(2, "AiStudioDebugWeb", "VISIBLE_WEBVIEW_RETAIN_REQUEST reason=$reason")
+    }
+
+    fun detach(webView: WebView, logger: SessionLogger?) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post { detach(webView, logger) }
+            return
+        }
+        val panel = panels.remove(webView)?.get()
+        (webView.parent as? ViewGroup)?.removeView(webView)
+        (panel?.parent as? ViewGroup)?.removeView(panel)
+        logger?.log(3, "AiStudioDebugWeb", "VISIBLE_WEBVIEW_DETACHED")
+    }
+
+    private fun dp(activity: android.app.Activity, value: Int): Int =
+        (value * activity.resources.displayMetrics.density).roundToInt()
+}

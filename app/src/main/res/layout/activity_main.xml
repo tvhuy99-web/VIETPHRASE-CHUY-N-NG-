@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootScroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/titleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:gravity="center"
+            android:padding="8dp"
+            android:text="Gemini Live Translate"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/historyButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Lịch sử" />
+
+        <LinearLayout
+            android:id="@+id/processingModeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/processingModeLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/processingModeSpinner"
+                android:text="Chế độ:"
+                android:textSize="16sp" />
+
+            <com.oai.geminilivetranslate.ui.AccessibleSpinner
+                android:id="@+id/processingModeSpinner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:contentDescription="Chọn chế độ"
+                android:minHeight="48dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/videoDescriptionModeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/videoDescriptionModeLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:labelFor="@id/videoDescriptionModeSpinner"
+                    android:text="Kiểu mô tả:"
+                    android:textSize="16sp" />
+
+                <com.oai.geminilivetranslate.ui.AccessibleSpinner
+                    android:id="@+id/videoDescriptionModeSpinner"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:contentDescription="Chọn kiểu mô tả video"
+                    android:minHeight="48dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/livePromptLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/livePromptLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:labelFor="@id/livePromptEditText"
+                    android:text="Lời nhắc"
+                    android:textSize="16sp" />
+
+                <EditText
+                    android:id="@+id/livePromptEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top|start"
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:maxLength="20000"
+                    android:minHeight="96dp"
+                    android:padding="8dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/audioSourceLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/audioSourceLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/audioSourceSpinner"
+                android:text="Nguồn âm thanh:"
+                android:textSize="16sp" />
+
+            <com.oai.geminilivetranslate.ui.AccessibleSpinner
+                android:id="@+id/audioSourceSpinner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:contentDescription="Chọn nguồn âm thanh"
+                android:minHeight="48dp" />
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/speakerDiarizationSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Phân biệt người nói"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/micLanguageLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/micLanguageLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/micLanguageSpinner"
+                android:text="Ngôn ngữ cần dịch sang:"
+                android:textSize="16sp" />
+
+            <com.oai.geminilivetranslate.ui.AccessibleSpinner
+                android:id="@+id/micLanguageSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="Chọn ngôn ngữ cần dịch sang"
+                android:minHeight="48dp" />
+
+            <Button
+                android:id="@+id/manageLanguagesButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="Thêm hoặc xóa ngôn ngữ" />
+
+            <Button
+                android:id="@+id/nextLanguageButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="Chuyển ngôn ngữ"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/selectFileButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Chọn tệp âm thanh hoặc video" />
+
+        <Button
+            android:id="@+id/miniBrowserButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Mở trang phát âm thanh hoặc video" />
+
+        <Button
+            android:id="@+id/startButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Bắt đầu" />
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityLiveRegion="none"
+            android:focusable="true"
+            android:padding="8dp"
+            android:text="Trạng thái: Sẵn sàng"
+            android:textSize="16sp" />
+
+        <LinearLayout
+            android:id="@+id/fileControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/rewindButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="Lùi 10 giây" />
+
+            <Button
+                android:id="@+id/playPauseButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="Phát" />
+
+            <Button
+                android:id="@+id/forwardButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="Tiến 10 giây" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/fileSpeedLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/fileSpeedLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/fileSpeedSeekBar"
+                android:text="Tốc độ phát tệp: 1.0×"
+                android:textSize="15sp" />
+
+            <SeekBar
+                android:id="@+id/fileSpeedSeekBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="Tốc độ phát tệp: 1.0 lần"
+                android:max="20"
+                android:minHeight="48dp"
+                android:progress="0" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/progressSeekBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="Vị trí đang phát: 0%"
+            android:max="100"
+            android:minHeight="48dp" />
+
+        <SeekBar
+            android:id="@+id/originalVolumeSeekBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="Âm lượng âm thanh gốc: 50%"
+            android:max="100"
+            android:minHeight="48dp"
+            android:progress="50" />
+
+        <TextView
+            android:id="@+id/translatedVolumeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:labelFor="@id/translatedVolumeSeekBar"
+            android:text="Âm lượng giọng dịch"
+            android:textSize="15sp" />
+
+        <SeekBar
+            android:id="@+id/translatedVolumeSeekBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="Âm lượng giọng dịch: 100%"
+            android:max="100"
+            android:minHeight="48dp"
+            android:progress="100" />
+
+        <Switch
+            android:id="@+id/aiVoiceSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:minHeight="48dp"
+            android:text="Phát giọng dịch" />
+
+        <LinearLayout
+            android:id="@+id/aiAudioStreamLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/aiAudioStreamLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/aiAudioStreamSpinner"
+                android:text="Cách phát giọng dịch"
+                android:textSize="15sp" />
+
+            <com.oai.geminilivetranslate.ui.AccessibleSpinner
+                android:id="@+id/aiAudioStreamSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:contentDescription="Chọn cách phát giọng dịch"
+                android:minHeight="48dp" />
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/autoDuckingSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Tự giảm âm gốc khi giọng dịch phát" />
+
+        <ScrollView
+            android:id="@+id/subtitleScroll"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:contentDescription="Nội dung dịch"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/subtitleText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="4dp"
+                android:text="Chưa có nội dung dịch"
+                android:textIsSelectable="true"
+                android:textSize="16sp" />
+        </ScrollView>
+
+        <LinearLayout
+            android:id="@+id/subtitleActionLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/exportButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="Xuất phụ đề" />
+
+            <Button
+                android:id="@+id/translateToVietnameseButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="Dịch sang tiếng Việt"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/subtitlePlaybackButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Xem video với phụ đề"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/settingsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Cài đặt" />
+
+        <Button
+            android:id="@+id/logButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Xem thông tin lỗi" />
+    </LinearLayout>
+</ScrollView>

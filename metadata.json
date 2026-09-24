@@ -1,0 +1,6 @@
+{
+  "name": "Gemini Live Translate",
+  "description": "Real-time audio and video translation powered by Gemini AI with live streaming support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
