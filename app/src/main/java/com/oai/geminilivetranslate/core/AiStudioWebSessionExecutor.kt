@@ -167,80 +167,25 @@ class AiStudioWebSessionExecutor(
                 callback(false, "NOT_READY")
                 return@post
             }
-            val target = normalizeModelId(modelId)
-            val startedAt = SystemClock.uptimeMillis()
-            val script = "JSON.stringify(window.__AIS_R11_SUPPORT__&&window.__AIS_R11_SUPPORT__.selectModel?window.__AIS_R11_SUPPORT__.selectModel(${JSONObject.quote(target)}):({ok:false,error:'r11-support-not-installed'}))"
+            val script = "JSON.stringify(window.__AIS_R11_SUPPORT__&&window.__AIS_R11_SUPPORT__.selectModel?window.__AIS_R11_SUPPORT__.selectModel(${JSONObject.quote(modelId)}):({ok:false,error:'r11-support-not-installed'}))"
             webView.evaluateJavascript(script) { raw ->
                 val decoded = decodeEvalValue(raw)
                 val obj = runCatching { JSONObject(decoded) }.getOrNull()
-                val accepted = obj?.optBoolean("ok", false) == true
-                events?.onLog("R18_MODEL_REQUESTED", "target=$target ${decoded.take(6000)}")
-                if (!accepted) {
-                    callback(false, decoded)
-                    return@evaluateJavascript
-                }
-                pollModelSelection(target, startedAt, 0, callback)
-            }
-        }
-    }
-
-    private fun pollModelSelection(
-        target: String,
-        startedAt: Long,
-        poll: Int,
-        callback: (Boolean, String) -> Unit,
-    ) {
-        if (destroyed || !pageFinished) {
-            callback(false, "MODEL_VERIFY_ABORTED")
-            return
-        }
-        val script = "JSON.stringify(window.__AIS_R11_SUPPORT__&&window.__AIS_R11_SUPPORT__.selectionState?window.__AIS_R11_SUPPORT__.selectionState():({ok:false,error:'r11-selection-state-not-installed'}))"
-        webView.evaluateJavascript(script) { raw ->
-            val decoded = decodeEvalValue(raw)
-            val obj = runCatching { JSONObject(decoded) }.getOrNull()
-            val requested = normalizeModelId(obj?.optString("requestedModel").orEmpty())
-            val selected = normalizeModelId(obj?.optString("selectedModel").orEmpty())
-            val observed = normalizeModelId(obj?.optString("observedGenerateModel").orEmpty())
-            val phase = obj?.optString("phase").orEmpty()
-            val error = obj?.optString("error").orEmpty()
-            val elapsed = SystemClock.uptimeMillis() - startedAt
-            val targetMatches = selected == target && (phase == "ui-verified" || phase == "network-verified")
-
-            if (poll == 0 || poll % 4 == 0 || targetMatches || phase == "failed" || phase == "network-mismatch") {
-                events?.onLog(
-                    "R18_MODEL_VERIFY",
-                    "target=$target poll=$poll elapsedMs=$elapsed requested=$requested selected=$selected observed=$observed phase=$phase error=$error detail=${decoded.take(3500)}",
-                )
-            }
-
-            when {
-                targetMatches -> {
-                    events?.onLog("R18_MODEL_VERIFIED", "target=$target phase=$phase elapsedMs=$elapsed uiOrNetwork=true")
-                    callback(true, decoded)
-                }
-                phase == "failed" || phase == "network-mismatch" -> {
-                    callback(false, decoded)
-                }
-                requested.isNotBlank() && requested != target -> {
-                    callback(false, "MODEL_REQUEST_CHANGED expected=$target actual=$requested detail=${decoded.take(1200)}")
-                }
-                elapsed >= 6_000L -> {
+                val ok = obj?.optBoolean("ok", false) == true
+                val path = obj?.optString("path").orEmpty()
+                val pending = obj?.optBoolean("pending", false) == true
+                val selected = obj?.optString("modelId").orEmpty()
+                events?.onLog("R18_MODEL_SELECT", decoded.take(6000))
+                if (ok && path == "request-layer" && !pending) {
                     events?.onLog(
-                        "R18_MODEL_VERIFY_TIMEOUT",
-                        "target=$target elapsedMs=$elapsed selected=$selected observed=$observed phase=$phase error=$error",
+                        "R18_MODEL_REQUEST_LAYER_ACCEPTED",
+                        "requested=$modelId selected=$selected pickerRequired=false",
                     )
-                    callback(false, "MODEL_VERIFY_TIMEOUT target=$target selected=$selected observed=$observed phase=$phase error=$error")
                 }
-                else -> main.postDelayed(
-                    { pollModelSelection(target, startedAt, poll + 1, callback) },
-                    200L,
-                )
+                callback(ok, decoded)
             }
         }
     }
-
-    private fun normalizeModelId(raw: String): String =
-        raw.trim().removePrefix("models/").lowercase()
 
     fun attachSttFile(
         uri: Uri, displayName: String, mimeType: String, size: Long, callback: (Boolean, String) -> Unit,
