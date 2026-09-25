@@ -208,11 +208,11 @@ Cấu trúc chính xác: {"text":"Bản tường thuật tổng hợp bằng ti�
             exec.selectModel(model) { ok, detail ->
                 okRef.set(ok); detailRef.set(detail); latch.countDown()
             }
-            if (!latch.await(7, TimeUnit.SECONDS)) last = "MODEL_SELECT_TIMEOUT"
+            if (!latch.await(4, TimeUnit.SECONDS)) last = "MODEL_SELECT_TIMEOUT"
             else {
                 last = detailRef.get()
                 if (okRef.get()) {
-                    logger.log(2, TAG, "Model verified model=$model attempt=${attempt + 1} gate=ui-verified")
+                    logger.log(2, TAG, "Model selected model=$model attempt=${attempt + 1}")
                     return
                 }
             }
