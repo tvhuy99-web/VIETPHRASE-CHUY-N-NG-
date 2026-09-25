@@ -170,8 +170,18 @@ class AiStudioWebSessionExecutor(
             val script = "JSON.stringify(window.__AIS_R11_SUPPORT__&&window.__AIS_R11_SUPPORT__.selectModel?window.__AIS_R11_SUPPORT__.selectModel(${JSONObject.quote(modelId)}):({ok:false,error:'r11-support-not-installed'}))"
             webView.evaluateJavascript(script) { raw ->
                 val decoded = decodeEvalValue(raw)
-                val ok = runCatching { JSONObject(decoded).optBoolean("ok", false) }.getOrDefault(false)
+                val obj = runCatching { JSONObject(decoded) }.getOrNull()
+                val ok = obj?.optBoolean("ok", false) == true
+                val path = obj?.optString("path").orEmpty()
+                val pending = obj?.optBoolean("pending", false) == true
+                val selected = obj?.optString("modelId").orEmpty()
                 events?.onLog("R18_MODEL_SELECT", decoded.take(6000))
+                if (ok && path == "request-layer" && !pending) {
+                    events?.onLog(
+                        "R18_MODEL_REQUEST_LAYER_ACCEPTED",
+                        "requested=$modelId selected=$selected pickerRequired=false",
+                    )
+                }
                 callback(ok, decoded)
             }
         }
@@ -463,7 +473,6 @@ class AiStudioWebSessionExecutor(
             val decoded=decodeEvalValue(raw); val obj=runCatching { JSONObject(decoded) }.getOrNull(); events?.onLog("R28_STT_RUN_TARGET", "attempt=${attempt+1} ${decoded.take(5000)}")
             val x=obj?.optDouble("xRatio",Double.NaN) ?: Double.NaN; val y=obj?.optDouble("yRatio",Double.NaN) ?: Double.NaN; val base=obj?.optInt("baselineCaptureCount",-1) ?: -1
             if (obj?.optBoolean("ok") != true || !x.isFinite() || !y.isFinite() || base < 0) { main.postDelayed({trySttRunSubmit(requestSeq,attempt+1)},NATIVE_SUBMIT_RETRY_MS); return@evaluateJavascript }
-            webView.evaluateJavascript("(function(){var b=window.__AIS_STT_PAGE__&&window.__AIS_STT_PAGE__.runButton?window.__AIS_STT_PAGE__.runButton().el:null;if(b&&typeof b.click==='function')b.click();})()", null)
             nativeTapController.requestNativeTap(JSONObject().put("xRatio",x).put("yRatio",y).put("tag","STT_RUN").put("role","stt-run").put("purpose","file-transcribe-run").toString())
             main.postDelayed({ checkGenerateCapture(requestSeq,base,"stt-run-${attempt+1}") { started ->
                 if (pending?.seq != requestSeq) return@checkGenerateCapture
