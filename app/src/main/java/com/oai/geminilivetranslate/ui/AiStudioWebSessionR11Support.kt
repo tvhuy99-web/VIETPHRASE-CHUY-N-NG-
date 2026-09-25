@@ -2,7 +2,7 @@ package com.oai.geminilivetranslate.ui
 
 
 object AiStudioWebSessionR11Support {
-    const val VERSION = "2026-09-25-web-session-r11.1-verified-model-selection"
+    const val VERSION = "2026-09-02-web-session-r11.0-auth-model-file"
 
     val DOCUMENT_START: String = """
         (function() {
@@ -16,12 +16,6 @@ object AiStudioWebSessionR11Support {
             requestedModel: '',
             selectedModel: '',
             observedGenerateModel: '',
-            selectionPhase: 'idle',
-            selectionError: '',
-            selectionAttempt: 0,
-            selectionStartedAt: 0,
-            selectionVerifiedAt: 0,
-            selectionUiText: '',
             fileChooserServed: false,
             fileName: '',
             fileMime: '',
@@ -139,62 +133,6 @@ object AiStudioWebSessionR11Support {
             try { el.click(); return true; } catch (_) { return false; }
           }
 
-          function comparableModelText(raw) {
-            return String(raw || '')
-              .toLowerCase()
-              .replace(/^models\//i, '')
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/^-+|-+$/g, '');
-          }
-
-          function modelTextMatchesTarget(text, target) {
-            const actual = comparableModelText(text);
-            const wanted = comparableModelText(target);
-            if (!actual || !wanted) return false;
-            if (actual === wanted || actual.indexOf(wanted) >= 0) return true;
-            const tokens = wanted.split('-').filter(function(x){ return x.length > 0; });
-            if (tokens.length < 3) return false;
-            return tokens.every(function(token){ return actual.indexOf(token) >= 0; });
-          }
-
-          function selectedModelEvidence(target) {
-            let nodes = [];
-            try {
-              nodes = document.querySelectorAll(
-                'mat-select,[role="combobox"],button,[role="button"],[aria-selected="true"],mat-option.mat-selected,mat-option.mdc-list-item--selected'
-              );
-            } catch (_) {}
-            let best = null, bestScore = -1, bestText = '';
-            for (let i = 0; i < nodes.length && i < 2200; i++) {
-              const el = nodes[i];
-              if (!visible(el)) continue;
-              const t = textOf(el);
-              if (!modelTextMatchesTarget(t, target)) continue;
-              let s = 1800;
-              const role = String(el.getAttribute && el.getAttribute('role') || '').toLowerCase();
-              const tag = String(el.tagName || '');
-              const selected = String(el.getAttribute && el.getAttribute('aria-selected') || '').toLowerCase() === 'true';
-              const expanded = String(el.getAttribute && el.getAttribute('aria-expanded') || '').toLowerCase();
-              const hasPopup = String(el.getAttribute && el.getAttribute('aria-haspopup') || '').toLowerCase();
-              if (tag === 'MAT-SELECT') s += 500;
-              if (role === 'combobox') s += 450;
-              if (selected) s += 600;
-              if (expanded === 'false') s += 180;
-              if (hasPopup === 'listbox' || hasPopup === 'menu') s += 180;
-              if (/\bmodel\b|mô\s*hình|gemini/i.test(t)) s += 200;
-              if (role === 'option' && !selected) s -= 900;
-              if (role === 'menuitem' && !selected) s -= 900;
-              if (s > bestScore) { best = el; bestScore = s; bestText = t; }
-            }
-            return {
-              ok: bestScore >= 1800,
-              score: bestScore,
-              text: bestText.slice(0, 500),
-              tag: best ? String(best.tagName || '') : '',
-              role: best ? String(best.getAttribute && best.getAttribute('role') || '') : ''
-            };
-          }
-
           function currentSessionProbe() {
             const hp = hostPath(location.href);
             let controllerReady = false, candidateCount = 0;
@@ -232,18 +170,6 @@ object AiStudioWebSessionR11Support {
                 const model = modelFromText(bodyText);
                 state.observedGenerateModel = model;
                 emit('R11_GENERATE_MODEL_OBSERVED',{modelId:model,source:source,host:hp.host,path:hp.path,bodyChars:bodyText.length});
-                if (model && state.requestedModel) {
-                  const matches = comparableModelText(model) === comparableModelText(state.requestedModel);
-                  if (matches) {
-                    state.selectionPhase = 'network-verified';
-                    state.selectionError = '';
-                    emit('R11_MODEL_NETWORK_VERIFIED',{requestedModel:state.requestedModel,observedGenerateModel:model,source:source});
-                  } else {
-                    state.selectionPhase = 'network-mismatch';
-                    state.selectionError = 'MODEL_NETWORK_MISMATCH';
-                    emit('R11_MODEL_NETWORK_MISMATCH',{requestedModel:state.requestedModel,observedGenerateModel:model,source:source});
-                  }
-                }
               }
             }
           }
@@ -354,123 +280,47 @@ object AiStudioWebSessionR11Support {
             },
             openModelPicker: function() {
               const nodes = document.querySelectorAll('mat-select,[role="combobox"],button,[role="button"]');
-              let best=null,bestScore=-1,bestText='';
-              for(let i=0;i<nodes.length && i<1800;i++) {
+              let best=null,bestScore=-1;
+              for(let i=0;i<nodes.length && i<1600;i++) {
                 const el=nodes[i]; if(!visible(el)) continue;
                 const t=textOf(el); let s=0;
-                const role=String(el.getAttribute&&el.getAttribute('role')||'').toLowerCase();
-                const popup=String(el.getAttribute&&el.getAttribute('aria-haspopup')||'').toLowerCase();
-                if(/\bgemini\b/i.test(t)) s+=1100;
-                if(/\bmodel\b|mô\s*hình/i.test(t)) s+=850;
-                if(String(el.tagName||'')==='MAT-SELECT') s+=380;
-                if(role==='combobox') s+=320;
-                if(popup==='listbox'||popup==='menu') s+=180;
-                if(/\brun\b|upload|attach|file|temperature|top\s*[pk]|token|safety/i.test(t)) s-=1100;
-                if(s>bestScore){best=el;bestScore=s;bestText=t;}
+                if(/gemini-/i.test(t)) s+=900;
+                if(/\bmodel\b|mô\s*hình/i.test(t)) s+=650;
+                if(String(el.tagName||'')==='MAT-SELECT') s+=500;
+                if(el.getAttribute&&el.getAttribute('role')==='combobox') s+=420;
+                if(s>bestScore){best=el;bestScore=s;}
               }
-              const ok=bestScore>=850&&clickNative(best);
-              emit('R11_MODEL_PICKER_OPEN',{ok:ok,score:bestScore,tag:best?String(best.tagName||''):'',role:best?String(best.getAttribute&&best.getAttribute('role')||''):'',text:bestText.slice(0,500)});
-              return {ok:ok,score:bestScore,text:bestText.slice(0,500)};
+              const ok=bestScore>=420&&clickNative(best);
+              emit('R11_MODEL_PICKER_OPEN',{ok:ok,score:bestScore,tag:best?String(best.tagName||''):'',textChars:best?textOf(best).length:0});
+              return {ok:ok,score:bestScore};
             },
             selectModel: function(modelId) {
-              const target=normalizeModel(modelId);
-              state.requestedModel=target;
-              state.selectedModel='';
-              state.selectionError='';
-              state.selectionAttempt+=1;
-              state.selectionStartedAt=Date.now();
-              state.selectionVerifiedAt=0;
-              state.selectionUiText='';
-              state.selectionPhase='requested';
-
-              const already=selectedModelEvidence(target);
-              if(already.ok){
-                state.selectedModel=target;
-                state.selectionPhase='ui-verified';
-                state.selectionVerifiedAt=Date.now();
-                state.selectionUiText=already.text;
-                emit('R11_MODEL_UI_VERIFIED',{modelId:target,alreadySelected:true,score:already.score,tag:already.tag,role:already.role,text:already.text});
-                return {ok:true,pending:false,verified:true,modelId:target,phase:state.selectionPhase};
-              }
-
-              emit('R11_MODEL_SELECT_START',{modelId:target,modelKnown:models.has(target),attempt:state.selectionAttempt});
-              state.selectionPhase='picker-opening';
+              const target=normalizeModel(modelId); state.requestedModel=target;
               const opened=this.openModelPicker();
-              if(!opened.ok) {
-                state.selectionPhase='failed';
-                state.selectionError='MODEL_PICKER_NOT_FOUND';
-                emit('R11_MODEL_SELECT_FAILED',{modelId:target,error:state.selectionError,attempt:state.selectionAttempt,pickerScore:opened.score,pickerText:opened.text||''});
-                return {ok:false,error:state.selectionError,modelId:target,phase:state.selectionPhase};
-              }
-
-              state.selectionPhase='picker-opened';
+              if(!opened.ok) return {ok:false,error:'MODEL_PICKER_NOT_FOUND',modelId:target};
               setTimeout(function(){
                 let nodes=[];
-                try{nodes=document.querySelectorAll('mat-option,[role="option"],[role="menuitem"],li,button[role="menuitem"],button[role="option"]');}catch(_){}
-                let best=null,bestScore=-1,bestText='';
-                for(let i=0;i<nodes.length && i<2600;i++) {
+                try{nodes=document.querySelectorAll('mat-option,[role="option"],[role="menuitem"],button,[role="button"],li');}catch(_){}
+                let best=null,bestScore=-1;
+                for(let i=0;i<nodes.length && i<2400;i++) {
                   const el=nodes[i]; if(!visible(el)) continue;
-                  const t=textOf(el); let s=0;
-                  if(modelTextMatchesTarget(t,target)) s+=2200;
-                  if(modelFromText(t)===target) s+=1200;
-                  if(String(el.tagName||'')==='MAT-OPTION') s+=500;
-                  const role=String(el.getAttribute&&el.getAttribute('role')||'').toLowerCase();
-                  if(role==='option') s+=450;
-                  if(role==='menuitem') s+=320;
-                  if(/deprecated|legacy|unavailable|not available/i.test(t)) s-=1600;
-                  if(s>bestScore){best=el;bestScore=s;bestText=t;}
+                  const t=textOf(el), lower=t.toLowerCase(); let s=0;
+                  if(lower===target.toLowerCase()) s+=2000;
+                  if(lower.indexOf(target.toLowerCase())>=0) s+=1500;
+                  if(modelFromText(t)===target) s+=900;
+                  if(String(el.tagName||'')==='MAT-OPTION') s+=260;
+                  if(el.getAttribute&&el.getAttribute('role')==='option') s+=220;
+                  if(s>bestScore){best=el;bestScore=s;}
                 }
-                const clicked=bestScore>=2200&&clickNative(best);
-                emit('R11_MODEL_OPTION_CLICK',{ok:clicked,modelId:target,score:bestScore,tag:best?String(best.tagName||''):'',role:best?String(best.getAttribute&&best.getAttribute('role')||''):'',text:bestText.slice(0,500)});
-                if(!clicked){
-                  state.selectionPhase='failed';
-                  state.selectionError='MODEL_OPTION_NOT_FOUND';
-                  emit('R11_MODEL_SELECT_FAILED',{modelId:target,error:state.selectionError,attempt:state.selectionAttempt,optionScore:bestScore,optionText:bestText.slice(0,500)});
-                  return;
-                }
-                state.selectionPhase='clicked';
-
-                let verifyAttempt=0;
-                const verify=function(){
-                  verifyAttempt+=1;
-                  const evidence=selectedModelEvidence(target);
-                  if(evidence.ok){
-                    state.selectedModel=target;
-                    state.selectionPhase='ui-verified';
-                    state.selectionError='';
-                    state.selectionVerifiedAt=Date.now();
-                    state.selectionUiText=evidence.text;
-                    emit('R11_MODEL_UI_VERIFIED',{modelId:target,alreadySelected:false,verifyAttempt:verifyAttempt,score:evidence.score,tag:evidence.tag,role:evidence.role,text:evidence.text});
-                    return;
-                  }
-                  if(verifyAttempt>=18){
-                    state.selectionPhase='failed';
-                    state.selectionError='MODEL_UI_VERIFY_FAILED';
-                    emit('R11_MODEL_SELECT_FAILED',{modelId:target,error:state.selectionError,attempt:state.selectionAttempt,verifyAttempts:verifyAttempt,lastScore:evidence.score,lastText:evidence.text});
-                    return;
-                  }
-                  if(verifyAttempt===1||verifyAttempt%5===0){
-                    emit('R11_MODEL_UI_VERIFY_WAIT',{modelId:target,verifyAttempt:verifyAttempt,lastScore:evidence.score,lastText:evidence.text});
-                  }
-                  setTimeout(verify,200);
-                };
-                setTimeout(verify,220);
-              },220);
-              return {ok:true,pending:true,verified:false,modelId:target,phase:state.selectionPhase};
+                const ok=bestScore>=900&&clickNative(best);
+                if(ok) state.selectedModel=target;
+                emit('R11_MODEL_SELECT_RESULT',{ok:ok,modelId:target,score:bestScore,tag:best?String(best.tagName||''):'',observedGenerateModel:state.observedGenerateModel});
+              },180);
+              emit('R11_MODEL_SELECT_START',{modelId:target,modelKnown:models.has(target)});
+              return {ok:true,pending:true,modelId:target};
             },
             selectionState: function() {
-              return {
-                ok:true,
-                requestedModel:state.requestedModel,
-                selectedModel:state.selectedModel,
-                observedGenerateModel:state.observedGenerateModel,
-                phase:state.selectionPhase,
-                error:state.selectionError,
-                attempt:state.selectionAttempt,
-                startedAgeMs:state.selectionStartedAt?Date.now()-state.selectionStartedAt:-1,
-                verifiedAgeMs:state.selectionVerifiedAt?Date.now()-state.selectionVerifiedAt:-1,
-                uiText:state.selectionUiText
-              };
+              return {ok:true,requestedModel:state.requestedModel,selectedModel:state.selectedModel,observedGenerateModel:state.observedGenerateModel};
             },
             markFileChooserServed: function(name,mime,size) {
               state.fileChooserServed=true; state.fileName=String(name||'').slice(0,260); state.fileMime=String(mime||'').slice(0,180); state.fileSize=Number(size||-1);
