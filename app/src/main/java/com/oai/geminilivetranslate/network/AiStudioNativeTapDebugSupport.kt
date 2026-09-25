@@ -145,6 +145,7 @@ internal class AiStudioNativeTapController(
         } ?: 0
     }
     private val lastTapAtByPurpose = mutableMapOf<String, Long>()
+    private var legacyFileTapAt = 0L
     @Volatile private var lastMicPermissionRequestAt = 0L
 
     private fun obtainFingerTouchEvent(
@@ -182,6 +183,81 @@ internal class AiStudioNativeTapController(
         )
     }
 
+    private fun requestLegacyFileTap(
+        xRatio: Double,
+        yRatio: Double,
+        tag: String,
+        role: String,
+        purpose: String,
+    ) {
+        main.post {
+            val now = SystemClock.uptimeMillis()
+            if (now - legacyFileTapAt < NATIVE_TAP_DEBOUNCE_MS) {
+                logger?.log(
+                    3,
+                    "AiStudioNativeTap",
+                    "ACTION_TAP_SKIPPED purpose=$purpose debounce=true legacyFile=true ageMs=${now - legacyFileTapAt}",
+                )
+                return@post
+            }
+            val width = webView.width
+            val height = webView.height
+            if (width < 4 || height < 4 || !webView.isShown) {
+                logger?.log(
+                    1,
+                    "AiStudioNativeTap",
+                    "ACTION_TAP_REJECT purpose=$purpose legacyFile=true laidOut=${width >= 4 && height >= 4} shown=${webView.isShown} width=$width height=$height",
+                )
+                return@post
+            }
+            legacyFileTapAt = now
+            val x = (xRatio * width).toFloat().coerceIn(1f, (width - 2).toFloat())
+            val y = (yRatio * height).toFloat().coerceIn(1f, (height - 2).toFloat())
+            val downTime = SystemClock.uptimeMillis()
+            val down = MotionEvent.obtain(
+                downTime,
+                downTime,
+                MotionEvent.ACTION_DOWN,
+                x,
+                y,
+                0,
+            ).apply {
+                source = InputDevice.SOURCE_TOUCHSCREEN
+            }
+            val downHandled = runCatching { webView.dispatchTouchEvent(down) }.getOrDefault(false)
+            down.recycle()
+            logger?.log(
+                2,
+                "AiStudioNativeTap",
+                "ACTION_TAP_DOWN purpose=$purpose legacyFile=true x=${x.roundToInt()} y=${y.roundToInt()} width=$width height=$height handled=$downHandled tag=$tag role=$role source=touchscreen",
+            )
+            main.postDelayed({
+                if (!webView.isAttachedToWindow) {
+                    logger?.log(1, "AiStudioNativeTap", "ACTION_TAP_UP purpose=$purpose legacyFile=true skipped=detached")
+                    return@postDelayed
+                }
+                val upTime = SystemClock.uptimeMillis()
+                val up = MotionEvent.obtain(
+                    downTime,
+                    upTime,
+                    MotionEvent.ACTION_UP,
+                    x,
+                    y,
+                    0,
+                ).apply {
+                    source = InputDevice.SOURCE_TOUCHSCREEN
+                }
+                val upHandled = runCatching { webView.dispatchTouchEvent(up) }.getOrDefault(false)
+                up.recycle()
+                logger?.log(
+                    2,
+                    "AiStudioNativeTap",
+                    "ACTION_TAP_UP purpose=$purpose legacyFile=true x=${x.roundToInt()} y=${y.roundToInt()} handled=$upHandled durationMs=${upTime - downTime} source=touchscreen",
+                )
+            }, 72L)
+        }
+    }
+
     @JavascriptInterface
     fun requestNativeTap(json: String?) {
         val parsed = runCatching { JSONObject(json.orEmpty()) }.getOrNull()
@@ -192,6 +268,10 @@ internal class AiStudioNativeTapController(
         val purpose = parsed?.optString("purpose").orEmpty().take(48).ifBlank { "start-live" }
         if (!xRatio.isFinite() || !yRatio.isFinite() || xRatio !in 0.0..1.0 || yRatio !in 0.0..1.0) {
             logger?.log(1, "AiStudioNativeTap", "ACTION_TAP_REJECT purpose=$purpose invalidCoordinates=true")
+            return
+        }
+        if (purpose == "file-transcribe-upload" || purpose == "file-transcribe-run") {
+            requestLegacyFileTap(xRatio, yRatio, tag, role, purpose)
             return
         }
         main.post {
